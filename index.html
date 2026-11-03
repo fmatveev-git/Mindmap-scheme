@@ -500,9 +500,12 @@ $('#imp').onclick=()=>{$('#imsg').textContent='';dlg.showModal()};
 $('#cls').onclick=()=>dlg.close();
 $('#fi').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#it').value=r.result;$('#it').dataset.name=f.name.replace(/\.[^.]+$/,'')};r.readAsText(f)};
 const projJSON=()=>JSON.stringify({...P(),people:allPeople()},(k,v)=>k[0]==='_'?undefined:v,1);
-const dlFile=(txt,name)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+const dlFile=async(txt,name)=>{
+ const dw=(window.claude&&typeof window.claude.use==='function')?await window.claude.use('downloads').catch(()=>null):null;
+ if(dw){try{await dw.save({filename:name,data:txt});return true}catch(e){$('#imsg').textContent=e&&e.code==='declined'?'Скачивание отменено.':'Скачать файл здесь не получилось. Нажмите «Показать JSON» и скопируйте текст.';return false}}
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);return true};
 $('#doexp').onclick=()=>{$('#it').value=projJSON();$('#imsg').textContent='Скопируйте этот JSON и сохраните: его можно импортировать обратно.'};
-$('#dlp').onclick=()=>{dlFile(projJSON(),(P().name||'проект').replace(/[\\/:*?"<>|]+/g,'_').trim()+'.json');$('#imsg').textContent='Файл проекта скачан со всеми настройками. Откройте его через «Выберите файл» и нажмите «Импортировать», чтобы перенести.'};
+$('#dlp').onclick=()=>{dlFile(projJSON(),(P().name||'проект').replace(/[\\/:*?"<>|]+/g,'_').trim()+'.json').then(ok=>{if(ok)$('#imsg').textContent='Файл проекта сохранён со всеми настройками. Чтобы перенести, выберите его через «Выберите файл» и нажмите «Импортировать».'})};
 $('#doimp').onclick=()=>{try{if(!$('#it').value.trim())throw 0;const ps=parseIn($('#it').value,$('#it').dataset.name||'Импорт');
  ps.forEach(p=>all(p.root,n=>(n.grp||[]).forEach(x=>addPerson(x))));S.projects.push(...ps);S.cur=S.projects.length-1;sel=null;save();projUI();render();panel();fit();dlg.close()}catch(e){$('#imsg').textContent='Не удалось разобрать содержимое. Проверьте формат.'}};
 try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>render())}catch(e){}
