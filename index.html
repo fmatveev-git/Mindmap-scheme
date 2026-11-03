@@ -50,13 +50,15 @@ dialog{background:var(--pn);color:var(--tx);border:1px solid var(--bd);border-ra
 <div class="row"><input type="file" id="fi" accept=".json,.txt,.md,.markdown,.opml,.xml"></div>
 <textarea id="it" rows="12" style="width:100%;box-sizing:border-box;margin-top:8px" placeholder="Выберите файл или вставьте сюда JSON, OPML, markdown или список с отступами. В строке можно писать: Название | оценка | ответственный | ссылка"></textarea>
 <div class="row" style="margin-top:8px"><button id="doimp">Импортировать как новый проект</button><button id="doexp">Показать JSON проекта</button><button id="cls">Закрыть</button></div>
+<h4>Схемы в репозитории</h4>
+<div class="row" style="margin-top:4px"><button id="doall">JSON всех проектов</button><button id="dl">Скачать data.json</button><button id="rb" title="Вернуть схемы, которые были до загрузки версии с сайта">Вернуть прежние</button></div>
 <div id="imsg" style="color:var(--mu);font-size:12px;margin-top:6px"></div></dialog>
 <script>
 const W=170,H=64,G=22,NS='http://www.w3.org/2000/svg',$=s=>document.querySelector(s);
 const uid=()=>Math.random().toString(36).slice(2,9);
 const mk=(t='Новый блок')=>({id:uid(),t,link:'',txt:'',num:'',own:'',fill:'',stroke:'',sw:1.5,dash:0,shape:'round',col:false,ch:[]});
-let S;try{S=JSON.parse(localStorage.getItem('planner2'))}catch(e){}
-if(!S||!S.projects||!S.projects.length){
+let S,fresh=false;try{S=JSON.parse(localStorage.getItem('planner2'))}catch(e){}
+if(!S||!S.projects||!S.projects.length){fresh=true;
  const r=mk('Проект'),a=mk('Этап 1'),b=mk('Этап 2'),c=mk('Гипотезы');
  a.num=5;a.own='Аня';a.fill='#c6e8f5';b.num=8;b.fill='#ffe8b8';c.fill='#ecd3f5';c.txt='Что считаем верным и как проверим';
  const a1=mk('Подзадача');a1.num=3;a.ch.push(a1);r.ch.push(a,b,c);
@@ -501,5 +503,19 @@ $('#doexp').onclick=()=>{$('#it').value=JSON.stringify(P(),(k,v)=>k[0]==='_'?und
 $('#doimp').onclick=()=>{try{if(!$('#it').value.trim())throw 0;const ps=parseIn($('#it').value,$('#it').dataset.name||'Импорт');
  ps.forEach(p=>all(p.root,n=>(n.grp||[]).forEach(x=>addPerson(x))));S.projects.push(...ps);S.cur=S.projects.length-1;sel=null;save();projUI();render();panel();fit();dlg.close()}catch(e){$('#imsg').textContent='Не удалось разобрать содержимое. Проверьте формат.'}};
 try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>render())}catch(e){}
-projUI();render();panel();requestAnimationFrame(fit);
+// schemes stored in the repository (data.json, deployed with the site)
+const dump=()=>{const rev=Date.now();S.seenRev=rev;save();return JSON.stringify({...S,rev},(k,v)=>k[0]==='_'||k==='seenRev'?undefined:v,1)};
+$('#doall').onclick=()=>{$('#it').value=dump();$('#imsg').textContent='Это все проекты целиком. Сохраните их в репозиторий файлом data.json: после деплоя они появятся на сайте.'};
+$('#dl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([dump()],{type:'application/json'}));a.download='data.json';document.body.appendChild(a);a.click();a.remove()};
+$('#rb').onclick=()=>{let b=null;try{b=JSON.parse(localStorage.getItem('planner2-backup'))}catch(e){}
+ if(!b||!b.projects||!b.projects.length){$('#imsg').textContent='Резервной копии нет.';return}
+ const rev=S.seenRev;S=b;S.seenRev=rev;if(!Array.isArray(S.people))S.people=[];sel=null;selE=null;save();projUI();render();panel();fit();dlg.close()};
+function loadRepo(){fetch('data.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{
+ if(!d||!Array.isArray(d.projects)||!d.projects.length)return;const rev=+d.rev||0;
+ if(!fresh&&rev<=(+S.seenRev||0))return;
+ if(!fresh&&!confirm('На сайте опубликованы обновлённые схемы. Загрузить их вместо текущих?\n\nТекущие сохранятся в резервной копии: «Импорт / экспорт → Вернуть прежние».')){S.seenRev=rev;save();return}
+ if(!fresh){try{localStorage.setItem('planner2-backup',localStorage.getItem('planner2')||'')}catch(e){}}
+ S={cur:Math.max(0,Math.min(+d.cur||0,d.projects.length-1)),people:Array.isArray(d.people)?d.people:[],projects:d.projects,seenRev:rev};
+ fresh=false;sel=null;selE=null;linkMode=false;save();projUI();render();panel();fit()}).catch(()=>{})}
+projUI();render();panel();requestAnimationFrame(fit);loadRepo();
 </script></body></html>
