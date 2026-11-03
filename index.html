@@ -516,9 +516,12 @@ $('#rb').onclick=()=>{let b=null;try{b=JSON.parse(localStorage.getItem('planner2
 function loadRepo(){fetch('data.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{
  if(!d||!Array.isArray(d.projects)||!d.projects.length)return;const rev=+d.rev||0;
  if(!fresh&&rev<=(+S.seenRev||0))return;
- if(!fresh&&!confirm('На сайте опубликованы обновлённые схемы. Загрузить их вместо текущих?\n\nТекущие сохранятся в резервной копии: «Импорт / экспорт → Вернуть прежние».')){S.seenRev=rev;save();return}
- if(!fresh){try{localStorage.setItem('planner2-backup',localStorage.getItem('planner2')||'')}catch(e){}}
+ if(fresh)return takeRepo(d,rev);
+ const b=document.createElement('div');b.style.cssText='position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:7;max-width:calc(100% - 40px);display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--pn);border:1px solid var(--ac);border-radius:10px;padding:8px 12px;box-shadow:0 4px 16px #0003;font-size:13px';
+ b.innerHTML='<span>Опубликованы обновлённые схемы. Загрузить их вместо текущих? Текущие сохранятся в резервной копии.</span><button id="rp_y" class="on">Загрузить</button><button id="rp_n">Оставить мои</button>';
+ $('#cw').appendChild(b);$('#rp_y').onclick=()=>{b.remove();takeRepo(d,rev)};$('#rp_n').onclick=()=>{b.remove();S.seenRev=rev;save()}}).catch(()=>{})}
+function takeRepo(d,rev){if(!fresh){try{localStorage.setItem('planner2-backup',localStorage.getItem('planner2')||'')}catch(e){}}
  S={cur:Math.max(0,Math.min(+d.cur||0,d.projects.length-1)),people:Array.isArray(d.people)?d.people:[],projects:d.projects,seenRev:rev};
- fresh=false;sel=null;selE=null;linkMode=false;save();projUI();render();panel();fit()}).catch(()=>{})}
+ fresh=false;sel=null;selE=null;linkMode=false;save();projUI();render();panel();fit()}
 projUI();render();panel();requestAnimationFrame(fit);loadRepo();
 </script></body></html>
